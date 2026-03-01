@@ -7,6 +7,8 @@ Usage:
     python report.py out.jsonl -o report.html  -> custom output path
 """
 
+from __future__ import annotations
+
 import argparse
 import html
 import json
@@ -14,6 +16,7 @@ import os
 import sys
 import webbrowser
 from pathlib import Path
+from typing import Optional
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -256,7 +259,7 @@ def _build_html(title: str, summary_html: str, cards_html: str) -> str:
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
-def build_report(jsonl_path: str, out_path: str | None = None) -> str:
+def build_report(jsonl_path: str, out_path: Optional[str] = None) -> str:
     records = []
     with open(jsonl_path, encoding="utf-8") as f:
         for line in f:

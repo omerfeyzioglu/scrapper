@@ -1,0 +1,14 @@
+{
+  "domain": "www.resmigazete.gov.tr",
+  "content_selectors": [
+    ".html-content"
+  ],
+  "drop_selectors": [
+    ".modal"
+  ],
+  "fields": {
+    "title_selector": ".html-title",
+    "date_selector": "#spanGazeteTarih",
+    "table_selector": "#gunluk-akis"
+  }
+}

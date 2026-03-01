@@ -1,32 +1,17 @@
 {
   "domain": "www.ntv.com.tr",
   "content_selectors": [
-    "article",
-    "main",
-    "[role='main']",
-    "#content",
-    ".content",
-    ".post",
-    ".entry"
+    ".container",
+    ".flex",
+    ".w-full"
   ],
   "drop_selectors": [
-    "nav",
-    "footer",
-    "header",
-    "aside",
-    ".ads",
-    ".advert",
-    ".sponsored",
-    ".cookie",
-    ".newsletter",
-    ".related",
-    ".share",
-    ".social",
-    ".contact"
+    ".hidden",
+    ".absolute"
   ],
   "fields": {
-    "title_selector": "h1::text",
+    "title_selector": "title",
     "date_selector": "",
-    "table_selector": "table"
+    "table_selector": ".flex.flex-col"
   }
 }

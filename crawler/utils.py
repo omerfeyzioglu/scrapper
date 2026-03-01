@@ -101,7 +101,7 @@ def diverse_link_sample(
     hrefs: list[str],
     base_url: str,
     base_domain: str,
-    max_links: int = 150,
+    max_links: int = 300,
 ) -> list[str]:
     """
     Return up to max_links same-domain hrefs, deduplicated and stratified by

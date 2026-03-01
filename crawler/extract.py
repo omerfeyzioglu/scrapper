@@ -17,10 +17,13 @@ _BOILERPLATE_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-TEXT_LIMIT = 15_000
+TEXT_LIMIT = 50_000
+
+# HTML snippet size for LLM (spec generation/repair). Larger pages get better selector hints.
+LLM_HTML_BYTES = 40_000
 
 
-def _trim_html(html: str, target_bytes: int = 20_000) -> str:
+def _trim_html(html: str, target_bytes: int = LLM_HTML_BYTES) -> str:
     """Return a leading slice of HTML suitable for sending to the LLM."""
     encoded = html.encode("utf-8", errors="replace")
     return encoded[:target_bytes].decode("utf-8", errors="replace")
@@ -105,8 +108,7 @@ def _best_content_block(sel: Selector, content_selectors: list[str]) -> Selector
 
     for css in content_selectors:
         for candidate in sel.css(css):
-            if _link_density(candidate) > 0.7:
-                continue
+            # Trust spec selectors: do not skip for link density (e.g. fihrist is link-heavy).
             s = _score(candidate)
             if s > best_score:
                 best_score = s
@@ -118,7 +120,7 @@ def _best_content_block(sel: Selector, content_selectors: list[str]) -> Selector
     return best
 
 
-def extract_tables(sel: Selector, table_selector: str, max_tables: int = 2) -> list[dict]:
+def extract_tables(sel: Selector, table_selector: str, max_tables: int = 10, max_rows: int = 50) -> list[dict]:
     tables: list[dict] = []
     for table in sel.css(table_selector or "table")[:max_tables]:
         headers = [th.css("::text").get("").strip() for th in table.css("th")]
@@ -129,7 +131,7 @@ def extract_tables(sel: Selector, table_selector: str, max_tables: int = 2) -> l
             headers = [td.css("::text").get("").strip() for td in all_trs[0].css("td")]
             data_trs = all_trs[1:]  # skip the header row from data rows
         rows: list[list[str]] = []
-        for tr in data_trs[:3]:
+        for tr in data_trs[:max_rows]:
             cells = [td.css("::text").get("").strip() for td in tr.css("td")]
             if cells:
                 rows.append(cells)
@@ -141,7 +143,7 @@ def extract_links(
     sel: Selector,
     base_url: str,
     domain: str,
-    max_links: int = 200,
+    max_links: int = 500,
 ) -> list[str]:
     links: list[str] = []
     seen: set[str] = set()
@@ -221,10 +223,10 @@ def extract_page(html: str, url: str, spec: dict, domain: str) -> dict[str, Any]
     tables = extract_tables(source, fields.get("table_selector", "table"))
 
     # 8. Content links (inside chosen block)
-    content_links = extract_links(source, url, domain, max_links=200)
+    content_links = extract_links(source, url, domain, max_links=500)
 
     # 9. All links on full page
-    all_links = extract_links(sel, url, domain, max_links=200)
+    all_links = extract_links(sel, url, domain, max_links=500)
 
     return {
         "title": title,
@@ -245,4 +247,4 @@ def is_boilerplate_heavy(text: str) -> bool:
 
 
 def html_snippet_for_llm(html: str) -> str:
-    return _trim_html(html, target_bytes=20_000)
+    return _trim_html(html, target_bytes=LLM_HTML_BYTES)

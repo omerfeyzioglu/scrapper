@@ -123,8 +123,8 @@ def generate_spec(
         f"Domain: {domain}\n"
         f"Sample URL: {url}\n\n"
         f"HTML snippet (~20 KB):\n{html_snippet}\n\n"
-        f"Diverse same-domain hrefs (up to 150):\n"
-        + "\n".join(href_sample[:150])
+        f"Diverse same-domain hrefs (up to 300):\n"
+        + "\n".join(href_sample[:300])
         + f"\n\n{_SCHEMA_REMINDER}"
     )
     log.info("Generating spec for %s via LLM", domain)
@@ -152,7 +152,7 @@ def repair_spec(
         f"Failure reason: {failure_reason}\n\n"
         f"HTML snippet:\n{html_snippet}\n\n"
         f"Diverse same-domain hrefs:\n"
-        + "\n".join(href_sample[:150])
+        + "\n".join(href_sample[:300])
         + f"\n\nFix the spec. {_SCHEMA_REMINDER}"
     )
     log.info("Repairing spec for %s via LLM (reason: %s)", domain, failure_reason)

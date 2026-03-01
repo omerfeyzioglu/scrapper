@@ -21,6 +21,8 @@ import scrapy
 from scrapy.http import Response
 
 from crawler import extract, llm, spec_store
+from urllib.parse import urlparse
+
 from crawler.utils import (
     diverse_link_sample,
     get_domain,
@@ -35,6 +37,39 @@ log = logging.getLogger(__name__)
 
 VALIDATION_WINDOW = 10   # pages tracked for title-missing check
 REPAIR_COOLDOWN   = 20   # minimum pages between consecutive repairs
+
+NON_HTML_EXTENSIONS = frozenset({
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".zip", ".rar", ".gz", ".tar",
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico",
+    ".mp4", ".mp3", ".avi", ".mov", ".wmv",
+    ".exe", ".dmg", ".pkg",
+})
+
+_EXT_TO_MIME = {
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".zip": "application/zip",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".mp3": "audio/mpeg",
+}
+
+
+def _non_html_content_type(url: str) -> str | None:
+    """Return guessed MIME type if URL has a non-HTML extension, else None."""
+    ext = urlparse(url).path.lower().rsplit(".", 1)
+    if len(ext) == 2:
+        dot_ext = "." + ext[1]
+        if dot_ext in NON_HTML_EXTENSIONS:
+            return _EXT_TO_MIME.get(dot_ext, "application/octet-stream")
+    return None
 
 
 class DomainSpider(scrapy.Spider):
@@ -107,6 +142,20 @@ class DomainSpider(scrapy.Spider):
             if clean in self.visited:
                 continue
             self.visited.add(clean)
+
+            # Emit asset record immediately for known non-HTML file types
+            # without sending a network request — avoids downloading large files.
+            guessed_mime = _non_html_content_type(clean)
+            if guessed_mime is not None:
+                yield {
+                    "type": "asset",
+                    "url": clean,
+                    "final_url": clean,
+                    "status": None,
+                    "content_type": guessed_mime,
+                }
+                continue
+
             yield scrapy.Request(
                 clean,
                 callback=self.parse,
@@ -148,13 +197,9 @@ class DomainSpider(scrapy.Spider):
         """Check extraction quality; trigger repair if clearly broken."""
         flags: list[str] = []
         text = data.get("extracted_text", "")
-        ld = data.get("link_density", 0.0)
 
         if data.get("title") and len(text) < 200:
             flags.append("title present but extracted_text < 200 chars")
-
-        if ld > 0.35:
-            flags.append(f"link density too high ({ld:.2f})")
 
         if extract.is_boilerplate_heavy(text):
             flags.append("boilerplate-heavy text")
