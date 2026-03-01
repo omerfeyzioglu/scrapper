@@ -1,0 +1,17 @@
+{
+  "domain": "maple-creek-63323.pomino.app",
+  "content_selectors": [
+    ".font-heading",
+    ".text-lg",
+    ".text-center"
+  ],
+  "drop_selectors": [
+    ".hidden",
+    ".fixed"
+  ],
+  "fields": {
+    "title_selector": "title",
+    "date_selector": "",
+    "table_selector": ".grid"
+  }
+}

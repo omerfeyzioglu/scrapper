@@ -1,0 +1,32 @@
+{
+  "domain": "www.ntv.com.tr",
+  "content_selectors": [
+    "article",
+    "main",
+    "[role='main']",
+    "#content",
+    ".content",
+    ".post",
+    ".entry"
+  ],
+  "drop_selectors": [
+    "nav",
+    "footer",
+    "header",
+    "aside",
+    ".ads",
+    ".advert",
+    ".sponsored",
+    ".cookie",
+    ".newsletter",
+    ".related",
+    ".share",
+    ".social",
+    ".contact"
+  ],
+  "fields": {
+    "title_selector": "h1::text",
+    "date_selector": "",
+    "table_selector": "table"
+  }
+}

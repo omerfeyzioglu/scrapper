@@ -1,0 +1,12 @@
+{
+  "domain": "resmigazete.gov.tr",
+  "content_selectors": [
+    ".html-content"
+  ],
+  "drop_selectors": [],
+  "fields": {
+    "title_selector": ".card-title.html-title",
+    "date_selector": "#spanGazeteTarih",
+    "table_selector": ".fihrist-item"
+  }
+}
