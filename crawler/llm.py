@@ -8,6 +8,9 @@ import json
 import logging
 import os
 
+from dotenv import load_dotenv
+load_dotenv() 
+
 from openai import OpenAI
 
 log = logging.getLogger(__name__)
@@ -114,20 +117,22 @@ def _call(messages: list[dict]) -> str:
 
 def generate_spec(
     domain: str,
+    prefix: str,
     url: str,
     html_snippet: str,
     href_sample: list[str],
 ) -> dict:
-    """Ask the LLM to produce a fresh extraction spec for this domain."""
+    """Ask the LLM to produce a fresh extraction spec for this (domain, prefix)."""
     user_msg = (
         f"Domain: {domain}\n"
+        f"Page type (URL path prefix): {prefix!r}\n"
         f"Sample URL: {url}\n\n"
-        f"HTML snippet (~20 KB):\n{html_snippet}\n\n"
+        f"HTML snippet (~40 KB):\n{html_snippet}\n\n"
         f"Diverse same-domain hrefs (up to 300):\n"
         + "\n".join(href_sample[:300])
         + f"\n\n{_SCHEMA_REMINDER}"
     )
-    log.info("Generating spec for %s via LLM", domain)
+    log.info("Generating spec for %s [prefix=%r] via LLM", domain, prefix)
     text = _call([
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": user_msg},
@@ -137,15 +142,17 @@ def generate_spec(
 
 def repair_spec(
     domain: str,
+    prefix: str,
     current_spec: dict,
     failure_reason: str,
     url: str,
     html_snippet: str,
     href_sample: list[str],
 ) -> dict:
-    """Ask the LLM to repair a broken spec."""
+    """Ask the LLM to repair a broken spec for (domain, prefix)."""
     user_msg = (
         f"Domain: {domain}\n"
+        f"Page type (URL path prefix): {prefix!r}\n"
         f"Sample URL: {url}\n\n"
         f"Current spec that produced bad extraction:\n"
         f"{json.dumps(current_spec, indent=2)}\n\n"
@@ -155,7 +162,10 @@ def repair_spec(
         + "\n".join(href_sample[:300])
         + f"\n\nFix the spec. {_SCHEMA_REMINDER}"
     )
-    log.info("Repairing spec for %s via LLM (reason: %s)", domain, failure_reason)
+    log.info(
+        "Repairing spec for %s [prefix=%r] via LLM (reason: %s)",
+        domain, prefix, failure_reason,
+    )
     text = _call([
         {"role": "system", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": user_msg},

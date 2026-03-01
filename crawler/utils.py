@@ -91,10 +91,12 @@ def normalise_url(url: str) -> str:
         return url
 
 
-def _path_prefix(url: str) -> str:
-    """Return first non-empty path segment, used for stratification."""
+
+def path_prefix(url: str) -> str:
+    """Return first non-empty path segment, used as page-type key for spec lookup."""
     parts = [p for p in urlparse(url).path.split("/") if p]
     return parts[0] if parts else ""
+
 
 
 def diverse_link_sample(
@@ -132,7 +134,7 @@ def diverse_link_sample(
         if clean in seen:
             continue
         seen.add(clean)
-        buckets[_path_prefix(clean)].append(clean)
+        buckets[path_prefix(clean)].append(clean)
 
     if not buckets:
         return []
