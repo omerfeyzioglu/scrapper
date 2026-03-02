@@ -287,6 +287,10 @@ class DomainSpider(scrapy.Spider):
     # ----------------------------------------------------------------- parse
 
     def parse(self, response: Response):
+        # Hard stop: drop in-flight responses once the cap is reached
+        if self._over_limit():
+            return
+
         final_url = response.url
         original_url = response.request.url
 

@@ -233,11 +233,20 @@ def extract_page(html: str, url: str, spec: dict, domain: str) -> dict[str, Any]
         extracted_text = re.sub(r"\s+", " ", raw_text).strip()[:TEXT_LIMIT]
         ld = _link_density(primary)
 
-    # 7. Tables
-    tables = extract_tables(primary, fields.get("table_selector", "table"))
+    # 7. Tables — collect from ALL content blocks
+    tables = []
+    for b in (blocks if blocks else [primary]):
+        tables.extend(extract_tables(b, fields.get("table_selector", "table")))
 
-    # 8. Content links
-    content_links = extract_links(primary, url, domain, max_links=500)
+    # 8. Content links — collect from ALL content blocks, deduplicated
+    _seen_links: set[str] = set()
+    content_links: list[str] = []
+    for b in (blocks if blocks else [primary]):
+        for lnk in extract_links(b, url, domain, max_links=500):
+            if lnk not in _seen_links:
+                _seen_links.add(lnk)
+                content_links.append(lnk)
+    content_links = content_links[:500]
 
     # 9. All links on full page
     all_links = extract_links(sel, url, domain, max_links=500)
