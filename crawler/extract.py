@@ -102,22 +102,29 @@ def _auto_detect_block(sel: Selector) -> Selector | None:
     return best
 
 
-def _best_content_block(sel: Selector, content_selectors: list[str]) -> Selector | None:
-    best: Selector | None = None
-    best_score = -1
+def _collect_content_blocks(sel: Selector, content_selectors: list[str]) -> list[Selector]:
+    """Return ALL elements matching any of the content_selectors.
+
+    If no selector matches, fall back to auto-detect (single best block).
+    This allows list-style pages (quotes, products, news cards) to include
+    every item, not just the highest-scoring one.
+    """
+    seen_ids: set[int] = set()
+    blocks: list[Selector] = []
 
     for css in content_selectors:
         for candidate in sel.css(css):
-            # Trust spec selectors: do not skip for link density (e.g. fihrist is link-heavy).
-            s = _score(candidate)
-            if s > best_score:
-                best_score = s
-                best = candidate
+            node_id = id(candidate.root)
+            if node_id not in seen_ids:
+                seen_ids.add(node_id)
+                blocks.append(candidate)
 
-    if best is None:
-        best = _auto_detect_block(sel)
+    if not blocks:
+        fallback = _auto_detect_block(sel)
+        if fallback is not None:
+            blocks = [fallback]
 
-    return best
+    return blocks
 
 
 def extract_tables(sel: Selector, table_selector: str, max_tables: int = 10, max_rows: int = 50) -> list[dict]:
@@ -178,17 +185,17 @@ def _clean_title(title: str) -> str:
 def extract_page(html: str, url: str, spec: dict, domain: str) -> dict[str, Any]:
     """
     Parse *html* using *spec* and return a dict of extracted fields.
-    Does NOT mutate the caller's selector; works on a fresh parse.
+    Collects ALL matching content blocks so list pages emit every item.
     """
     sel = Selector(text=html)
 
     # 1. Drop noisy sections
     drop_noise(sel, spec.get("drop_selectors", []))
 
-    # 2. Pick best content block
-    block = _best_content_block(sel, spec.get("content_selectors", []))
+    # 2. Collect ALL matching content blocks
+    blocks = _collect_content_blocks(sel, spec.get("content_selectors", []))
 
-    # 3. Title — always extract plain text, never raw HTML
+    # 3. Title
     fields = spec.get("fields", {})
     title = ""
     if fields.get("title_selector"):
@@ -200,7 +207,7 @@ def extract_page(html: str, url: str, spec: dict, domain: str) -> dict[str, Any]
         raw_title = sel.css("title::text").get("").strip()
         title = _clean_title(raw_title)
 
-    # 4. Date — same: strip to plain text
+    # 4. Date
     date = ""
     if fields.get("date_selector"):
         ds = fields["date_selector"]
@@ -208,22 +215,29 @@ def extract_page(html: str, url: str, spec: dict, domain: str) -> dict[str, Any]
             ds = ds + "::text"
         date = " ".join(sel.css(ds).getall()).strip()
 
-    # 5. Extracted text from best block (or first <body> element as fallback)
-    body_nodes = sel.css("body")
-    fallback = body_nodes[0] if body_nodes else sel
-    source = block if block is not None else fallback
-    raw_text = " ".join(source.css("*::text").getall())
-    # Collapse whitespace
-    extracted_text = re.sub(r"\s+", " ", raw_text).strip()[:TEXT_LIMIT]
-
-    # 6. Link density of extracted block
-    ld = _link_density(source)
+    # 5. Text: join ALL blocks with blank lines between them
+    if blocks:
+        parts = []
+        for b in blocks:
+            raw = " ".join(b.css("*::text").getall())
+            cleaned = re.sub(r"\s+", " ", raw).strip()
+            if cleaned:
+                parts.append(cleaned)
+        extracted_text = "\n\n".join(parts)[:TEXT_LIMIT]
+        ld = sum(_link_density(b) for b in blocks) / len(blocks)
+        primary = blocks[0]
+    else:
+        body_nodes = sel.css("body")
+        primary = body_nodes[0] if body_nodes else sel
+        raw_text = " ".join(primary.css("*::text").getall())
+        extracted_text = re.sub(r"\s+", " ", raw_text).strip()[:TEXT_LIMIT]
+        ld = _link_density(primary)
 
     # 7. Tables
-    tables = extract_tables(source, fields.get("table_selector", "table"))
+    tables = extract_tables(primary, fields.get("table_selector", "table"))
 
-    # 8. Content links (inside chosen block)
-    content_links = extract_links(source, url, domain, max_links=500)
+    # 8. Content links
+    content_links = extract_links(primary, url, domain, max_links=500)
 
     # 9. All links on full page
     all_links = extract_links(sel, url, domain, max_links=500)
